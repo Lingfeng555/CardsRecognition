@@ -6,16 +6,24 @@ import warnings
 class CNNBlock(nn.Module):
 
     out_put_size : dict
+    input_height: int
+    input_width: int
+    pool_depth: int
+    phases: int
+    last_phase: int
+    layers: nn.ModuleList
+    pool: nn.MaxPool2d
+    batch_norm: nn.BatchNorm2d
 
     def __init__(self, 
                  feature: list = [1,16,16,32,32,64,64,64], 
                  height: int = 134, 
                  width: int = 134, 
-                 pool_depth = 3,
-                 conv_kernel_size = 3,
-                 conv_padding = 1,
-                 pool_kernel_size = 2,
-                 pool_kernel_stride = 2
+                 pool_depth: int = 3,
+                 conv_kernel_size: int = 3,
+                 conv_padding: int = 1,
+                 pool_kernel_size: int = 2,
+                 pool_kernel_stride: int = 2
                  ):
         super(CNNBlock, self).__init__()
 
@@ -66,11 +74,13 @@ class CNNBlock(nn.Module):
         if (self.out_put_size["height"] <= 1) or (self.out_put_size["width"] <= 1):
             warnings.warn(f"The output features are less or equal than 1x1, this makes no sense you fucking moron", UserWarning)
     
-    def forward(self, x):
-
+    def forward(self, x: torch.tensor) -> torch.tensor:
+        
+        # Check if the input size is correct according to the design
         if x[0].size() != (1, self.input_height, self.input_width):
             warnings.warn(f"The input size should be (batch, 1, {self.input_height}, {self.input_width}), got {x.size()} instead. Fix it you dick", UserWarning)
 
+        # Conv and pool steps
         iterator = 0
         for _ in range(self.phases):
             for _ in range(self.pool_depth):
@@ -82,7 +92,10 @@ class CNNBlock(nn.Module):
             x =  F.relu(self.layers[iterator](x))
         x = self.pool(x)
 
+        # normalize and return the result
         return self.batch_norm(x)
+    
+    def n_parameters(self) -> int: return sum(p.numel() for p in self.parameters())
 
 
 if __name__ == '__main__':
@@ -91,10 +104,10 @@ if __name__ == '__main__':
 
     model = CNNBlock(height=height, width=width)
 
-    input_tensor = torch.randn(32,1, 601, 601)  
+    input_tensor = torch.randn(32,1, 600, 600)  
 
     output = model(input_tensor)
 
     print("Forma de la salida después de `view`:", output.shape)
-    print(f"Model parameters: {sum(p.numel() for p in model.parameters())}")
+    print(f"Model parameters: {model.n_parameters()}")
     print(model.out_put_size)

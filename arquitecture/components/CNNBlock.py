@@ -19,26 +19,32 @@ class CNNBlock(nn.Module):
                  ):
         super(CNNBlock, self).__init__()
 
+        # Check if depth pool remains in the domain
         if pool_depth > len(feature):
-            warnings.warn(f"The pool depth has been set to {len(feature)} since it cannot be more", UserWarning)
+            warnings.warn(f"The pool depth has been set to {len(feature)} since it cannot be more. Your biological tree is a circle", UserWarning)
 
+        # Assign default values
         self.input_height = height
         self.input_width = width
         self.pool_depth = pool_depth
         self.phases = len(feature) // self.pool_depth
         self.last_phase = len(feature) % self.pool_depth
-
-        self.pool = nn.MaxPool2d(kernel_size=pool_kernel_size, stride=pool_kernel_stride)
         self.out_put_size = {}
 
+        # Build the pool layer
+        self.pool = nn.MaxPool2d(kernel_size=pool_kernel_size, stride=pool_kernel_stride)
+
+        # Build the convs layers
         iterator = 0
         self.layers = nn.ModuleList()
         while iterator != (len(feature)-1):
             self.layers.append(nn.Conv2d(feature[iterator], feature[iterator+1], kernel_size=conv_kernel_size, padding=conv_padding))
             iterator+=1
 
+        # Build the norm layers
         self.batch_norm = nn.BatchNorm2d(feature[len(feature)-1])
 
+        # Calculate the out
         self.out_put_size["features"] = feature[len(feature)-1]
 
         temp_height = self.input_height
@@ -55,12 +61,16 @@ class CNNBlock(nn.Module):
 
         self.out_put_size["height"] = temp_height
         self.out_put_size["width"] = temp_width
-        
+
+        # Raise a warning the the output makes no sense
         if (self.out_put_size["height"] <= 1) or (self.out_put_size["width"] <= 1):
             warnings.warn(f"The output features are less or equal than 1x1, this makes no sense you fucking moron", UserWarning)
     
     def forward(self, x):
-        
+
+        if x[0].size() != (1, self.input_height, self.input_width):
+            warnings.warn(f"The input size should be (batch, 1, {self.input_height}, {self.input_width}), got {x.size()} instead. Fix it you dick", UserWarning)
+
         iterator = 0
         for _ in range(self.phases):
             for _ in range(self.pool_depth):
@@ -81,7 +91,7 @@ if __name__ == '__main__':
 
     model = CNNBlock(height=height, width=width)
 
-    input_tensor = torch.randn(32,1, height, width)  
+    input_tensor = torch.randn(32,1, 601, 601)  
 
     output = model(input_tensor)
 

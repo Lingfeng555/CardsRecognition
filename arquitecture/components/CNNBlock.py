@@ -75,10 +75,11 @@ class CNNBlock(nn.Module):
         # Conv and pool steps
 
         #print("Total layers: ", len(self.layers) )
+        #print("Phases: ", self.phases)
         #print("last phase:",{self.last_phase})
 
         iterator = 0
-        for phase in range(self.phases-self.last_phase):
+        for phase in range(self.phases):
 
             #print("phase: ", phase)
 
@@ -107,8 +108,8 @@ class CNNBlock(nn.Module):
 
 
 if __name__ == '__main__':
-    height=600
-    width=600
+    height=100
+    width=100
 
     model = CNNBlock(height=height, width=width, pool_depth=6, feature=[1,2,3,4,5,6,2])
 

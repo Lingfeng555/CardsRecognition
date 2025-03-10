@@ -23,7 +23,7 @@ class CardsDataset(Dataset):
         if seed != None :
             self.data = self.data.sample(frac=1, random_state=seed).reset_index(drop=True)
         
-        self.data["filepaths"] = self.data["filepaths"].apply(lambda x: os.path.join(self.path, x))
+        self.data["filepat:19/03/2025 01:00hs"] = self.data["filepaths"].apply(lambda x: os.path.join(self.path, x))
         self.labels = pd.get_dummies(self.data, columns=['labels'], drop_first=True, dtype=int).drop(columns=["class index", "filepaths"])
         self.convert = convert
 

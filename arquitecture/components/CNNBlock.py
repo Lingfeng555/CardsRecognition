@@ -43,32 +43,23 @@ class CNNBlock(nn.Module):
         self.pool = nn.MaxPool2d(kernel_size=pool_kernel_size, stride=pool_kernel_stride)
 
         # Build the convs layers
-        iterator = 0
-        self.layers = nn.ModuleList()
-        while iterator != (len(feature)-1):
-            self.layers.append(nn.Conv2d(feature[iterator], feature[iterator+1], kernel_size=conv_kernel_size, padding=conv_padding))
-            iterator+=1
-
+        self.layers = nn.ModuleList([
+            nn.Conv2d(feature[i], feature[i + 1], kernel_size=conv_kernel_size, padding=conv_padding)
+            for i in range(len(feature) - 1)
+        ])
+        
         # Build the norm layers
         self.batch_norm = nn.BatchNorm2d(feature[len(feature)-1])
 
         # Calculate the out
         self.out_put_size["features"] = feature[len(feature)-1]
 
-        temp_height = self.input_height
-        temp_width = self.input_width
+        self.out_put_size["height"] = self.input_height
+        self.out_put_size["width"] = self.input_width
         
-        for _ in range(self.phases):
-            temp_height = int( ((temp_height - pool_kernel_size)/pool_kernel_stride)+1 )
-            temp_width = int( ((temp_width - pool_kernel_size)/pool_kernel_stride)+1 )
-
-        if self.last_phase != 0 :
-            temp_height = int( ((temp_height - pool_kernel_size)/pool_kernel_stride)+1 )
-            temp_width = int( ((temp_width - pool_kernel_size)/pool_kernel_stride)+1 )
-
-
-        self.out_put_size["height"] = temp_height
-        self.out_put_size["width"] = temp_width
+        for _ in range(self.phases + int(self.last_phase != 0 )):
+            self.out_put_size["height"] = int( ((self.out_put_size["height"] - pool_kernel_size)/pool_kernel_stride)+1 )
+            self.out_put_size["width"] = int( ((self.out_put_size["width"] - pool_kernel_size)/pool_kernel_stride)+1 )
 
         # Raise a warning the the output makes no sense
         if (self.out_put_size["height"] <= 1) or (self.out_put_size["width"] <= 1):

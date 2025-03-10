@@ -28,7 +28,7 @@ class CNNBlock(nn.Module):
         super(CNNBlock, self).__init__()
 
         # Check if depth pool remains in the domain
-        if pool_depth > len(feature):
+        if pool_depth > (len(feature)-1):
             warnings.warn(f"The pool depth has been set to {len(feature)} since it cannot be more. Your biological tree is a circle", UserWarning)
 
         # Assign default values
@@ -36,7 +36,7 @@ class CNNBlock(nn.Module):
         self.input_width = width
         self.pool_depth = pool_depth
         self.phases = len(feature) // self.pool_depth
-        self.last_phase = len(feature) % self.pool_depth
+        self.last_phase = (len(feature)-1) % self.pool_depth
         self.out_put_size = {}
 
         # Build the pool layer
@@ -57,7 +57,8 @@ class CNNBlock(nn.Module):
         self.out_put_size["height"] = self.input_height
         self.out_put_size["width"] = self.input_width
         
-        for _ in range(self.phases + int(self.last_phase != 0 )):
+        #print(self.phases-self.last_phase + int(self.last_phase != 0 ))
+        for _ in range(self.phases-self.last_phase + int(self.last_phase != 0 )):
             self.out_put_size["height"] = int( ((self.out_put_size["height"] - pool_kernel_size)/pool_kernel_stride)+1 )
             self.out_put_size["width"] = int( ((self.out_put_size["width"] - pool_kernel_size)/pool_kernel_stride)+1 )
 
@@ -72,16 +73,32 @@ class CNNBlock(nn.Module):
             warnings.warn(f"The input size should be (batch, 1, {self.input_height}, {self.input_width}), got {x.size()} instead. Fix it you dick", UserWarning)
 
         # Conv and pool steps
+
+        #print("Total layers: ", len(self.layers) )
+        #print("last phase:",{self.last_phase})
+
         iterator = 0
-        for _ in range(self.phases):
+        for phase in range(self.phases-self.last_phase):
+
+            #print("phase: ", phase)
+
             for _ in range(self.pool_depth):
+                #print("\tLayer: ", iterator)
                 x =  F.relu(self.layers[iterator](x))
                 iterator += 1
+
             x = self.pool(x)
         
+        #print("last phase:",{self.last_phase})
+
         for _ in range(self.last_phase):
+
+            #print("\tLayer: ", iterator)
+
             x =  F.relu(self.layers[iterator](x))
-        x = self.pool(x)
+            iterator += 1
+        
+        if self.last_phase != 0 : x = self.pool(x)
 
         # normalize and return the result
         return self.batch_norm(x)
@@ -93,9 +110,9 @@ if __name__ == '__main__':
     height=600
     width=600
 
-    model = CNNBlock(height=height, width=width)
+    model = CNNBlock(height=height, width=width, pool_depth=6, feature=[1,2,3,4,5,6,2])
 
-    input_tensor = torch.randn(32,1, 600, 600)  
+    input_tensor = torch.randn(32,1, height, width)  
 
     output = model(input_tensor)
 

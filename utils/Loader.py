@@ -23,15 +23,18 @@ class CardsDataset(Dataset):
         if seed != None :
             self.data = self.data.sample(frac=1, random_state=seed).reset_index(drop=True)
         
-        self.data["filepat:19/03/2025 01:00hs"] = self.data["filepaths"].apply(lambda x: os.path.join(self.path, x))
-        self.labels = pd.get_dummies(self.data, columns=['labels'], drop_first=True, dtype=int).drop(columns=["class index", "filepaths"])
+        self.data["filepaths_full"] = self.data["filepaths"].apply(lambda x: os.path.join(self.path, x))
+        self.labels = pd.get_dummies(self.data, columns=['labels'], drop_first=True, dtype=int).drop(columns=["class index", "filepaths", "filepaths_full"])
         self.convert = convert
 
     def __len__(self):
         return len(self.data)
     
     def __getitem__(self, index):
-        img_path = self.data.iloc[index]["filepaths"]
+        img_path = self.data.iloc[index]["filepaths_full"]
+        
+        if not os.path.exists(img_path):
+            print(f"Warning: File not found: {img_path}")
 
         image = Image.open(img_path).convert(self.convert)
 

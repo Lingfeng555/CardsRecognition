@@ -24,7 +24,7 @@ class CardsDataset(Dataset):
             self.data = self.data.sample(frac=1, random_state=seed).reset_index(drop=True)
         
         self.data["filepaths_full"] = self.data["filepaths"].apply(lambda x: os.path.join(self.path, x))
-        self.labels = pd.get_dummies(self.data, columns=['labels'], drop_first=True, dtype=int).drop(columns=["class index", "filepaths", "filepaths_full"])
+        self.labels = pd.get_dummies(self.data, columns=['labels'], dtype=int).drop(columns=["class index", "filepaths", "filepaths_full"])
         self.convert = convert
 
     def __len__(self):

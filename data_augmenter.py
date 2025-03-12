@@ -18,7 +18,7 @@ from utils.Loader import CardsDataset
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 scale_2 = 0.60
-dataset_scale_050 = CardsDataset(scale=scale_2)
+#dataset_scale_050 = CardsDataset(scale=scale_2)
 dataset_scale_050_test = CardsDataset(scale=scale_2, split="test")
 
 rotation_transforms = [

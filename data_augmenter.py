@@ -19,6 +19,45 @@ from functools import partial
 from utils.Perspectiver import Perspectiver
 from utils.Loader import CardsDataset
 
+def add_random_mask(img, mask_probability=0.5):
+    """Add random center dot masks to the image to prevent model bias
+    
+    Args:
+        img: Input tensor image
+        mask_probability: Probability of applying a mask
+    
+    Returns:
+        Masked tensor image
+    """
+    if torch.rand(1).item() > mask_probability:
+        return img
+    
+    # Clone the image to avoid modifying the original
+    masked_img = img.clone()
+    
+    # Get image dimensions
+    _, height, width = masked_img.shape
+    
+    # Create a circular mask in the center
+    center_h, center_w = height // 2, width // 2
+    
+    # Control the size of the center dot - adjust these values to change size
+    # Smaller divisor = larger dot
+    min_radius = min(height, width) // 6  # Minimum size
+    max_radius = min(height, width) // 3  # Maximum size
+    mask_radius = torch.randint(min_radius, max_radius + 1, (1,)).item()
+    
+    # Create the circular mask
+    y, x = torch.meshgrid(torch.arange(height), torch.arange(width), indexing='ij')
+    dist_from_center = torch.sqrt((y - center_h)**2 + (x - center_w)**2)
+    mask = dist_from_center <= mask_radius
+    
+    # Apply mask by setting the region to black (0)
+    for c in range(masked_img.shape[0]):
+        masked_img[c][mask] = 0.0
+    
+    return masked_img
+
 # Thread-safe counters
 class Counter:
     def __init__(self):
@@ -94,54 +133,52 @@ def process_image(args):
     local_csv_rows = []
     augmentation_count = 0
     
-    # Apply all augmentations
-    for h_flip in [False, True]:
-        h_flipped_img = v2.RandomHorizontalFlip(p=1.0)(img) if h_flip else img
-        
-        for v_flip in [False, True]:
-            v_flipped_img = v2.RandomVerticalFlip(p=1.0)(h_flipped_img) if v_flip else h_flipped_img
-            
-            for rot_transform in rotation_transforms:
-                for noise in [True, False]:
-                    # Create a fresh copy
-                    current_img = v_flipped_img.clone()
-                    
-                    if noise:
-                        sigma = 0.155
-                        current_img = v2.GaussianNoise(sigma=sigma)(current_img)
-                    
-                    # Get a thread-safe counter value
-                    counter_value = label_counters[text_label].increment()
-                    augmentation_count += 1
-                    
-                    final_img = rot_transform(current_img)
-
-                    denorm_img = final_img.clone()
-                    denorm_img = torch.clamp(denorm_img, 0, 1)
-
-                    pil_img = F.to_pil_image(denorm_img)
-
-                    h_flip_text = "h-flipped" if h_flip else "original"
-                    v_flip_text = "v-flipped" if v_flip else "original"
-                    rotation = "90" if "90" in str(rot_transform) else "180" if "180" in str(rot_transform) else "270"
-                    noise_text = "noisy" if noise else "clean"
-
-                    filename = f"{counter_value:03d}_{h_flip_text}_{v_flip_text}_rot{rotation}_{noise_text}.png"
-                    file_path = os.path.join(label_dir, filename)
-                    
-                    # Path for CSV - use the relative path format
-                    relative_path = os.path.join(f"augmented/{split}", text_label, filename)
-
-                    pil_img.save(file_path)
-                    
-                    # Add entry to CSV with the correct split
-                    local_csv_rows.append([
-                        class_idx,
-                        relative_path,
-                        text_label,
-                        card_type,
-                        f"augmented_{split}"  # Mark the data as augmented with the split
-                    ])
+    # Create a fresh copy of the original image
+    current_img = img.clone()
+    
+    # 1. Apply a random rotation (just one)
+    rotation_idx = torch.randint(0, len(rotation_transforms), (1,)).item()
+    rot_transform = rotation_transforms[rotation_idx]
+    rotation_angle = "90" if rotation_idx == 0 else "180" if rotation_idx == 1 else "270"
+    
+    # 2. Apply Gaussian noise with 50% probability
+    apply_noise = torch.rand(1).item() < 0.5
+    if apply_noise:
+        sigma = 0.155
+        current_img = v2.GaussianNoise(sigma=sigma)(current_img)
+    
+    # 3. Apply random mask (already has 50% probability internally)
+    current_img = add_random_mask(current_img)
+    
+    # Get a thread-safe counter value
+    counter_value = label_counters[text_label].increment()
+    augmentation_count += 1
+    
+    final_img = rot_transform(current_img)
+    
+    denorm_img = final_img.clone()
+    denorm_img = torch.clamp(denorm_img, 0, 1)
+    
+    pil_img = F.to_pil_image(denorm_img)
+    
+    # Create descriptive filename
+    noise_text = "noisy" if apply_noise else "clean"
+    filename = f"{counter_value:03d}_rot{rotation_angle}_{noise_text}.png"
+    file_path = os.path.join(label_dir, filename)
+    
+    # Path for CSV - use the relative path format
+    relative_path = os.path.join(f"augmented/{split}", text_label, filename)
+    
+    pil_img.save(file_path)
+    
+    # Add entry to CSV with the correct split
+    local_csv_rows.append([
+        class_idx,
+        relative_path,
+        text_label,
+        card_type,
+        f"augmented_{split}"  # Mark the data as augmented with the split
+    ])
     
     # Append local results to global CSV rows - thread safe
     with csv_rows_lock:

@@ -77,6 +77,7 @@ class CNNBlock(nn.Module):
         #print("Total layers: ", len(self.layers) )
         #print("Phases: ", self.phases)
         #print("last phase:",{self.last_phase})
+        #print(self.out_put_size)
 
         iterator = 0
         for phase in range(self.phases):
@@ -95,7 +96,6 @@ class CNNBlock(nn.Module):
         for _ in range(self.last_phase):
 
             #print("\tLayer: ", iterator)
-
             x =  F.relu(self.layers[iterator](x))
             iterator += 1
         
@@ -108,10 +108,10 @@ class CNNBlock(nn.Module):
 
 
 if __name__ == '__main__':
-    height=100
-    width=100
+    height=132
+    width=132
 
-    model = CNNBlock(height=height, width=width, pool_depth=6, feature=[1,2,3,4,5,6,2])
+    model = CNNBlock(height=height, width=width, feature=[1,16,16,32,32,64,64,64,128,128])
 
     input_tensor = torch.randn(32,1, height, width)  
 

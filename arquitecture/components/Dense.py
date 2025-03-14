@@ -23,10 +23,10 @@ class DenseBlock(nn.Module):
             for i in range(len(hidden_layers)-1)
             ])
     
-    def forward(self, x: torch.tensor) -> torch.tensor:
+    def forward(self, x: torch.tensor, att: torch.tensor) -> torch.tensor:
         for layer in self.layers:
             x = F.relu(layer(x))
-        return x
+        return x * att
     
     def n_parameters(self) -> int: return sum(p.numel() for p in self.parameters())
 

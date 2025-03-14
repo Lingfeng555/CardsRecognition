@@ -11,6 +11,7 @@ from torchvision import tv_tensors
 import matplotlib.pyplot as plt
 from PIL import Image
 import torchvision.transforms.functional as F
+import skimage
 
 from utils.Perspectiver import Perspectiver
 from utils.Loader import CardsDataset
@@ -18,7 +19,7 @@ from utils.Loader import CardsDataset
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 scale_2 = 0.60
-#dataset_scale_050 = CardsDataset(scale=scale_2)
+dataset_scale_050 = CardsDataset(scale=scale_2)
 dataset_scale_050_test = CardsDataset(scale=scale_2, split="test")
 
 rotation_transforms = [
@@ -50,22 +51,32 @@ for idx in range(len(dataset_scale_050_test)):
             v_flipped_img = v2.RandomVerticalFlip(p=1.0)(h_flipped_img) if v_flip else h_flipped_img
             
             for rot_transform in rotation_transforms:
-                label_counters[text_label] += 1
                 
-                final_img = rot_transform(v_flipped_img)
-                
-                denorm_img = final_img.clone()
-                denorm_img = torch.clamp(denorm_img, 0, 1)
-                
-                pil_img = F.to_pil_image(denorm_img)
-                
-                h_flip_text = "h-flipped" if h_flip else "original"
-                v_flip_text = "v-flipped" if v_flip else "original"
-                rotation = "90" if "90" in str(rot_transform) else "180" if "180" in str(rot_transform) else "270"
-                
-                filename = f"{label_counters[text_label]:03d}_{h_flip_text}_{v_flip_text}_rot{rotation}.jpg"
-                
-                pil_img.save(os.path.join(label_dir, filename))
+                for noise in [True, False]:
+                    # Create a fresh copy to prevent modification carry-over
+                    current_img = v_flipped_img.clone()
+                    
+                    if noise:
+                        sigma = 0.155
+                        current_img = v2.GaussianNoise(sigma=sigma)(current_img)
+                    
+                    label_counters[text_label] += 1
+
+                    final_img = rot_transform(current_img)
+
+                    denorm_img = final_img.clone()
+                    denorm_img = torch.clamp(denorm_img, 0, 1)
+
+                    pil_img = F.to_pil_image(denorm_img)
+
+                    h_flip_text = "h-flipped" if h_flip else "original"
+                    v_flip_text = "v-flipped" if v_flip else "original"
+                    rotation = "90" if "90" in str(rot_transform) else "180" if "180" in str(rot_transform) else "270"
+                    noise_text = "noisy" if noise else "clean"
+
+                    filename = f"{label_counters[text_label]:03d}_{h_flip_text}_{v_flip_text}_rot{rotation}_{noise_text}.png"
+
+                    pil_img.save(os.path.join(label_dir, filename))
 
 print(f"Augmentation complete. Created {sum(label_counters.values())} images across {len(label_counters)} classes.")
 print(f"Images saved to {output_base_dir}")

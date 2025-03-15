@@ -15,7 +15,7 @@ class CardClassifier(nn.Module):
     attention_block : AttentionBlock
     wighted_sum : DenseBlock
     
-    def __init__(self, image_size: torch.Size, convolution_structure: list, expert_output_len: int, output_len: int):
+    def __init__(self, image_size: torch.Size, convolution_structure: list, expert_output_len: int, output_len: int, expert_depth: int):
         super(CardClassifier, self).__init__()
         
         self.cnn_block = CNNBlock(feature=convolution_structure, height=image_size[0], width=image_size[1], pool_depth=2)
@@ -25,17 +25,18 @@ class CardClassifier(nn.Module):
         n_features = self.cnn_block.out_put_size["features"]
         
         flatten_feature_size = feature_height * feature_width
-        expert_hidden_layers = self.get_dense_structure(input_size=feature_height * feature_width, output=expert_output_len)
+        expert_hidden_layers = self.get_dense_structure(input_size=feature_height * feature_width, output=expert_output_len, stop = expert_depth)
         
         self.experts = nn.ModuleList([DenseBlock(output_len=expert_output_len,
                                                  hidden_layers=expert_hidden_layers, 
-                                                 input_size=flatten_feature_size) for _ in range(n_features)])
+                                                 input_size=flatten_feature_size
+                                                 ) for _ in range(n_features)])
         
         self.attention_block = AttentionBlock(attention_value=1, height=feature_height, width=feature_width, num_features=n_features)
         
-        final_weighted_sum_layers = self.get_dense_structure(input_size=n_features*expert_output_len, output=output_len)
+        final_weighted_sum_layers = self.get_dense_structure(input_size=n_features*expert_output_len, output=output_len, stop = expert_depth)
         
-        self.wighted_sum = DenseBlock(input_size=n_features*expert_output_len, hidden_layers=final_weighted_sum_layers,output_len = output_len)
+        self.wighted_sum = DenseBlock(input_size=n_features*expert_output_len, hidden_layers=final_weighted_sum_layers, output_len = output_len)
 
     def n_parameters(self) -> int: return sum(p.numel() for p in self.parameters())
     

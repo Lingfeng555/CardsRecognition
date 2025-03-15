@@ -8,8 +8,8 @@ import numpy as np
 
 class CardsDataset(Dataset):
 
-    def __init__(self, path: str = "data/", transform = None, seed: int = 55, scale: float = 1, split: str = "train", convert: str = "L"):
-        self.data = pd.read_csv(os.path.join(path, "cards.csv"))
+    def __init__(self, path: str = "data/", transform = None, seed: int = 55, scale: float = 1, split: str = "train", convert: str = "L", csv_file: str = "cards.csv"):
+        self.data = pd.read_csv(os.path.join(path, csv_file))
         self.data = self.data[self.data["data set"]==split].drop(columns=["data set", "card type"])
         
         if transform is not None: self.transform = transform

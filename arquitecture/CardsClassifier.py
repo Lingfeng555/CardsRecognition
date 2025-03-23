@@ -15,10 +15,10 @@ class CardClassifier(nn.Module):
     attention_block : AttentionBlock
     wighted_sum : DenseBlock
     
-    def __init__(self, image_size: torch.Size, convolution_structure: list, expert_output_len: int, output_len: int, expert_depth: int):
+    def __init__(self, image_size: torch.Size, convolution_structure: list, expert_output_len: int, output_len: int, expert_depth: int, pool_depth: int):
         super(CardClassifier, self).__init__()
         
-        self.cnn_block = CNNBlock(feature=convolution_structure, height=image_size[0], width=image_size[1], pool_depth=2)
+        self.cnn_block = CNNBlock(feature=convolution_structure, height=image_size[0], width=image_size[1], pool_depth=pool_depth)
         
         feature_height = self.cnn_block.out_put_size["height"]
         feature_width = self.cnn_block.out_put_size["width"]
@@ -60,11 +60,11 @@ class CardClassifier(nn.Module):
         return x
 
     def get_dense_structure (self, input_size: int, output: int, stop = 2):
-        i = 1
-        ret = [input_size]
-        while (input_size // i) > output:
-            ret.append( input_size // i )
-            i *= 2
+        i = input_size
+        ret = []
+        while i > output:
+            ret.append( i - 10 )
+            i = i - 10
             if len(ret) == stop: break
         return ret
         

@@ -8,7 +8,7 @@ from .CardsClassifier import CardClassifier
 
 class SupraCardClassifier(nn.Module):
 
-    def __init__(self, image_size: torch.Size, convolution_structure: list, expert_output_len: int, extractors_output_len: int, expert_depth: int, n_extractor: int, output_len: int):
+    def __init__(self, image_size: torch.Size, convolution_structure: list, expert_output_len: int, extractors_output_len: int, expert_depth: int, n_extractor: int, output_len: int, pool_depth: int):
         super(SupraCardClassifier, self).__init__()
 
         self.extractors = nn.ModuleList([
@@ -16,7 +16,8 @@ class SupraCardClassifier(nn.Module):
                             convolution_structure = convolution_structure,
                             expert_output_len = expert_output_len,
                             output_len = extractors_output_len,
-                            expert_depth = expert_depth
+                            expert_depth = expert_depth,
+                            pool_depth=pool_depth
                            ) for _ in range(n_extractor)
         ])
 
@@ -33,11 +34,11 @@ class SupraCardClassifier(nn.Module):
         return x
 
     def get_dense_structure (self, input_size: int, output: int, stop = 2):
-        i = 1
-        ret = [input_size]
-        while (input_size // i) > output:
-            ret.append( input_size // i )
-            i *= 2
+        i = input_size
+        ret = []
+        while i > output:
+            ret.append( i - 10 )
+            i = i - 10
             if len(ret) == stop: break
         return ret
     
@@ -51,7 +52,8 @@ if __name__ == "__main__":
                             extractors_output_len=10,
                             expert_depth=4,
                             output_len=53,
-                            n_extractor=2
+                            n_extractor=2,
+                            pool_depth=2
                             )
 
     # Crear tensor de entrada de prueba (batch_size=1, height=100, width=100)

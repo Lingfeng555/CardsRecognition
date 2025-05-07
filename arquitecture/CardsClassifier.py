@@ -35,7 +35,7 @@ class CardClassifier(nn.Module):
         
         self.attention_block = AttentionBlock(attention_value=1, height=feature_height, width=feature_width, num_features=n_features)
         
-        final_weighted_sum_layers = self.get_dense_structure(input_size=n_features*expert_output_len, output=output_len, stop = expert_depth)
+        final_weighted_sum_layers = self.get_final_dense_structure(input_size=n_features*expert_output_len, output=output_len, stop = expert_depth)
         
         self.wighted_sum = DenseBlock(input_size=n_features*expert_output_len, hidden_layers=final_weighted_sum_layers, output_len = output_len)
 
@@ -55,6 +55,14 @@ class CardClassifier(nn.Module):
         return x
 
     def get_dense_structure (self, input_size: int, output: int, stop = 2):
+        i = 1
+        ret = [input_size]
+        while ret[-1]//i > output:
+            ret.append( ret[-1] // i )
+            i = i * 2
+        return ret
+    
+    def get_final_dense_structure (self, input_size: int, output: int, stop = 2):
         i = input_size
         ret = []
         while i > output:

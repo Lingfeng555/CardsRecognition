@@ -81,4 +81,10 @@ class CardsDataset(Dataset):
         return np.array(self.labels.columns.to_list())[np.argmax(encoed_label)]
 
 if __name__ == '__main__':
-    print(CardsDataset(target="category").labels.head())
+    category_test_dataset = CardsDataset(target="category")
+    _, label = category_test_dataset.__getitem__(1)
+    print(len(label))
+    
+    suit_test_dataset = CardsDataset(target="suit")
+    _, label = suit_test_dataset.__getitem__(1)
+    print(len(label))

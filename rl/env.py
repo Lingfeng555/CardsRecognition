@@ -1,0 +1,125 @@
+import numpy as np
+import gym
+from gym import spaces
+import random
+
+class BlackjackEnv(gym.Env):
+    """
+    Modified Blackjack environment with a realistic poker deck, usable Ace logic, and suit-based rewards.
+    """
+    def __init__(self):
+        super(BlackjackEnv, self).__init__()
+
+        self.action_space = spaces.Discrete(2)  # 0 = Stand, 1 = Hit
+        self.observation_space = spaces.Tuple((
+            spaces.Discrete(32),  # Player's hand total (0–31)
+            spaces.Discrete(11),  # Dealer's visible card (1–10)
+            spaces.Discrete(2)    # Usable Ace: 1 = yes, 0 = no
+        ))
+
+        self.deck = self._init_deck()
+        self.reset()
+
+    def _init_deck(self):
+        suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
+        values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
+        deck = [{'value': v, 'suit': s} for s in suits for v in values]
+        random.shuffle(deck)
+        return deck
+
+    def draw_card(self):
+        if len(self.deck) == 0:
+            self.deck = self._init_deck()
+        return self.deck.pop()
+
+    def card_value(self, card):
+        if card['value'] == 'A':
+            return 1
+        elif card['value'] in ['J', 'Q', 'K']:
+            return 10
+        return int(card['value'])
+
+    def card_suit(self, card):
+        return card['suit']
+
+    def hand_value(self, hand):
+        total = sum(self.card_value(card) for card in hand)
+        suits = [self.card_suit(card) for card in hand]
+        ace_count = sum(1 for card in hand if card['value'] == 'A')
+        usable_ace = 0
+
+        while ace_count > 0:
+            if total + 10 <= 21:
+                total += 10
+                usable_ace = 1
+                break
+            ace_count -= 1
+
+        return total, usable_ace, suits
+
+    def _get_obs(self):
+        total, usable_ace, _ = self.hand_value(self.player)
+        dealer_card_value = self.card_value(self.dealer[0])
+        return (total, dealer_card_value, usable_ace)
+
+    def reset(self):
+        self.deck = self._init_deck()
+        self.player = [self.draw_card()]
+        self.dealer = [self.draw_card()]
+        self.done = False
+        self.player_stick = False
+        self.dealer_stick = False
+        return self._get_obs()
+
+    def dealer_policy(self, dealer_hand):
+        total, _, _ = self.hand_value(dealer_hand)
+        return 0 if total >= 17 else 1
+
+    def step(self, player_action):
+        assert self.action_space.contains(player_action), "Invalid action (0 = stick, 1 = hit)"
+
+        dealer_action = self.dealer_policy(self.dealer)
+
+        if not self.player_stick and player_action == 1:
+            self.player.append(self.draw_card())
+        else:
+            self.player_stick = True
+
+        if not self.dealer_stick and dealer_action == 1:
+            self.dealer.append(self.draw_card())
+        else:
+            self.dealer_stick = True
+
+        player_total, _, player_suits = self.hand_value(self.player)
+        dealer_total, _, _ = self.hand_value(self.dealer)
+
+        if player_total > 21 or dealer_total > 21 or (self.player_stick and self.dealer_stick):
+            self.done = True
+            reward = self._get_reward(player_total, dealer_total, player_suits)
+        else:
+            reward = 0
+
+        return self._get_obs(), reward, self.done, {}
+
+    def _get_reward(self, player_total, dealer_total, player_suits):
+        if player_total > 21:
+            return -1
+        elif dealer_total > 21:
+            base_reward = 1
+        elif player_total > dealer_total:
+            base_reward = 1
+        elif player_total < dealer_total:
+            return -1
+        elif player_total == dealer_total:
+            base_reward = 0.3
+        else:
+            return 0
+
+        suit_bonuses = {
+            'Hearts': 0.2,
+            'Diamonds': 0.1,
+            'Clubs': 0.05,
+            'Spades': 0.0
+        }
+        total_bonus = sum(suit_bonuses[suit] for suit in set(player_suits) if suit in suit_bonuses)
+        return base_reward + total_bonus

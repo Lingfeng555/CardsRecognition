@@ -14,6 +14,7 @@ class CardClassifier(nn.Module):
     experts : nn.ModuleList
     attention_block : AttentionBlock
     wighted_sum : DenseBlock
+    experts_output: torch.tensor
     
     def __init__(self, image_size: torch.Size, convolution_structure: list, expert_output_len: int, output_len: int, expert_depth: int, pool_depth: int):
         super(CardClassifier, self).__init__()
@@ -44,19 +45,13 @@ class CardClassifier(nn.Module):
         features = self.cnn_block(x)
 
         attention_values = self.attention_block(features)
-        #print(features.shape)
         features = features.view(features.shape[0], self.cnn_block.out_put_size["features"], -1)
-        #print("Features.shape (batch_size, n_features, dataflatten) :",features.shape)
-        #print("Attention.shape (batch_size, n_features, ,attention value) :", attention_values.shape)
         x = nn.functional.relu(torch.stack([self.experts[i](features[:, i, :], attention_values[:, i, :]) for i in range(len(self.experts))], dim=1))
-
+        
+        self.experts_output = x
         x = x.flatten(start_dim=1)
         
-        #self.experts_output = x #Store the current output to store it
-
-        #print(f"MoE output {x.shape}")
-        x = self.wighted_sum(x, att = 1) # here we dont have any attention
-        # x = torch.clamp(x, min=1.0,max=100) #activarlp solo para el modelo entrenado
+        x = self.wighted_sum(x, att = 1) 
         return x
 
     def get_dense_structure (self, input_size: int, output: int, stop = 2):
@@ -66,6 +61,24 @@ class CardClassifier(nn.Module):
             ret.append( i - 10 )
             i = i - 10
             if len(ret) == stop: break
+        return ret
+
+    def get_expert_output_dict(self)->dict:
+        batch, experts, outputs = self.experts_output.size()
+
+        ls = self.experts_output.to("cpu").detach().numpy().tolist()
+
+        ret = {}
+
+        for y in range(experts):
+            for z in range(outputs):
+                ret[f"expert_{y}_{z}"] = []
+
+        for x in range(batch):
+            for y in range(experts):
+                for z in range(outputs):
+                    ret[f"expert_{y}_{z}"].append(ls[x][y][z])
+
         return ret
         
 if __name__ == "__main__":

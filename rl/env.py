@@ -33,11 +33,21 @@ class BlackjackEnv(gym.Env):
         return self.deck.pop()
 
     def card_value(self, card):
+        if card['suit'] == 'Hearts':
+            added_val = 2
+        elif card['suit'] == 'Diamonds':
+            added_val = 1
+        elif card['suit'] == 'Clubs':
+            added_val = 0
+        else:
+            added_val = -2
+
         if card['value'] == 'A':
-            return 1
+            return 1 + added_val
         elif card['value'] in ['J', 'Q', 'K']:
-            return 10
-        return int(card['value'])
+            return 10 + added_val
+        
+        return int(card['value']) + added_val
 
     def card_suit(self, card):
         return card['suit']
@@ -107,19 +117,12 @@ class BlackjackEnv(gym.Env):
         elif dealer_total > 21:
             base_reward = 1
         elif player_total > dealer_total:
-            base_reward = 1
+            base_reward = 1.5
         elif player_total < dealer_total:
             return -1
-        elif player_total == dealer_total:
+        elif player_total == dealer_total and player_total <= 21:
             base_reward = 0.3
         else:
             return 0
 
-        suit_bonuses = {
-            'Hearts': 0.2,
-            'Diamonds': 0.1,
-            'Clubs': 0.05,
-            'Spades': 0.0
-        }
-        total_bonus = sum(suit_bonuses[suit] for suit in set(player_suits) if suit in suit_bonuses)
-        return base_reward + total_bonus
+        return base_reward

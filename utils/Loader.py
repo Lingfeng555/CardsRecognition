@@ -30,6 +30,7 @@ class CardsDataset(Dataset):
         # Process the csv
         self.data = pd.read_csv(os.path.join(path, csv_file))
         self.data = self.data[self.data["data set"]==split].drop(columns=["data set"])
+        self.data = self.data[self.data["labels"].str.lower() != "joker"].reset_index(drop=True)
         self.data["suit"] = self.data["labels"].apply(lambda x : x.split(" ")[-1])
         self.data["category"] = self.data["card type"]
         self.data = self.data.drop(columns=["card type"])

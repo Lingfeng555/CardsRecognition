@@ -15,11 +15,23 @@ class CardClassifier(nn.Module):
     attention_block : AttentionBlock
     wighted_sum : DenseBlock
     experts_output: torch.tensor
-    expert_output_len: int
     device : str
     
-    def __init__(self, image_size: torch.Size, convolution_structure: list, expert_output_len: int, output_len: int, expert_depth: int, pool_depth: int):
+    image_height: int
+    image_width: int
+    convolution_structure: list
+    expert_output_len: int
+    output_len: int
+    
+    def __init__(self, image_size: torch.Size, convolution_structure: list, expert_output_len: int, output_len: int, pool_depth: int):
         super(CardClassifier, self).__init__()
+        
+        self.image_height = image_size[0]
+        self.image_width = image_size[1]
+        self.convolution_structure = convolution_structure
+        self.expert_output_len = expert_output_len
+        self.output_len = output_len
+        self.pool_depth = pool_depth
         
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.cnn_block = CNNBlock(feature=convolution_structure, height=image_size[0], width=image_size[1], pool_depth=pool_depth)
@@ -30,7 +42,7 @@ class CardClassifier(nn.Module):
         n_features = self.cnn_block.out_put_size["features"]
         
         flatten_feature_size = feature_height * feature_width
-        expert_hidden_layers = self.get_dense_structure(input_size=feature_height * feature_width, output=expert_output_len, stop = expert_depth)
+        expert_hidden_layers = self.get_dense_structure(input_size=feature_height * feature_width, output=expert_output_len)
         
         self.experts = nn.ModuleList([DenseBlock(output_len=expert_output_len,
                                                  hidden_layers=expert_hidden_layers, 
@@ -39,7 +51,7 @@ class CardClassifier(nn.Module):
         
         self.attention_block = AttentionBlock(attention_value=1, height=feature_height, width=feature_width, num_features=n_features)
         
-        final_weighted_sum_layers = self.get_final_dense_structure(input_size=n_features*expert_output_len, output=output_len, stop = expert_depth)
+        final_weighted_sum_layers = self.get_final_dense_structure(input_size=n_features*expert_output_len, output=output_len)
         
         self.wighted_sum = DenseBlock(input_size=n_features*expert_output_len, hidden_layers=final_weighted_sum_layers, output_len = output_len)
 
@@ -69,7 +81,7 @@ class CardClassifier(nn.Module):
         x = self.wighted_sum(x, att = 1) 
         return x
 
-    def get_dense_structure (self, input_size: int, output: int, stop = 2):
+    def get_dense_structure (self, input_size: int, output: int):
         i = 1
         ret = [input_size]
         while ret[-1]//i > output:
@@ -77,7 +89,7 @@ class CardClassifier(nn.Module):
             i = i * 2
         return ret
     
-    def get_final_dense_structure (self, input_size: int, output: int, stop = 2):
+    def get_final_dense_structure (self, input_size: int, output: int):
         i = input_size
         ret = [input_size]
         while ret[-1]//i > output:

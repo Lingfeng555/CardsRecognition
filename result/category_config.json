@@ -1,0 +1,1 @@
+{"image_height": 134, "image_width": 134, "convolution_structure": [1, 12, 12, 16, 16, 24, 24, 32, 32], "expert_output_len": 3, "output_len": 13, "pool_depth": 2}

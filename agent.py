@@ -1,6 +1,8 @@
+from typing import Literal
 from utils.Loader import CardsDataset
 from arquitecture.CardsClassifier import CardClassifier
 import torch
+import torch.nn as nn
 import random
 import os
 import json
@@ -23,18 +25,23 @@ class Agent:
 
     def size (self) -> int:
         return self.category_classifier.n_parameters() + self.suit_classifier.n_parameters()
+
+    def rebuild_classifier(self, target: Literal["suit", "category"]) -> nn.Module:
+        with open(f"result/{target}_config.json", 'rb') as f:
+            config = json.load(f)
+            classifier = CardClassifier(image_size=torch.Size((config["image_height"], config["image_width"],)), 
+                            convolution_structure=config["convolution_structure"],
+                            expert_output_len=config["expert_output_len"],
+                            output_len=config["output_len"],
+                            pool_depth=config["pool_depth"]
+                            )
+        return classifier
     
     # @todo Do not let this hardcoded bitch
     def set_category_classifier(self, csv_file):
         self.category_dataset = CardsDataset(scale=0.6, split="test", csv_file=csv_file, target="category")
-        _, label = self.category_dataset.__getitem__(1)
-        self.category_classifier = CardClassifier(image_size=torch.Size((134, 134)), 
-                            convolution_structure=[1,12,12,16,16,24,24,32,32],
-                            expert_output_len=3, # 3  -> 0.7
-                            expert_depth=5,
-                            output_len=len(label),
-                            pool_depth=2
-                            )
+        self.category_classifier = self.rebuild_classifier(target="category")
+        
         category_checkpoint = torch.load("result/category_classifier.pth")
         self.category_classifier.load_state_dict(category_checkpoint['model_state_dict'])
         
@@ -50,14 +57,8 @@ class Agent:
     # @todo Do not let this hardcoded bitch
     def set_suit_classifier(self, csv_file):
         self.suit_dataset = CardsDataset(scale=0.6, split="test", csv_file=csv_file, target="suit")
-        _, label = self.suit_dataset.__getitem__(1)
-        self.suit_classifier = CardClassifier(image_size=torch.Size((134, 134)), 
-                            convolution_structure=[1,8,8,16,16,24,24,32,32],
-                            expert_output_len=3,
-                            expert_depth=4,
-                            output_len=len(label),
-                            pool_depth=2
-                            )
+        self.suit_classifier = self.rebuild_classifier(target="suit")
+        
         suit_checkpoint = torch.load("result/suit_classifier.pth")
         self.suit_classifier.load_state_dict(suit_checkpoint['model_state_dict'])
         

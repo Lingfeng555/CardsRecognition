@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from .components.CNNBlock import CNNBlock
 from .components.Dense import DenseBlock
 from .components.AttentionBlock import AttentionBlock
+import json
 
 class CardClassifier(nn.Module):
     
@@ -16,12 +17,24 @@ class CardClassifier(nn.Module):
     wighted_sum : DenseBlock
     experts_output: torch.tensor
     device : str
-    
     image_height: int
     image_width: int
     convolution_structure: list
     expert_output_len: int
     output_len: int
+    pool_depth: int
+
+    def save_config(self, path: str) -> None:
+        config = {
+            "image_height": self.image_height,
+            "image_width": self.image_width,
+            "convolution_structure": self.convolution_structure,
+            "expert_output_len": self.expert_output_len,
+            "output_len": self.output_len,
+            "pool_depth": self.pool_depth
+        }
+        with open(path, "w") as f:
+            json.dump(config, f)
     
     def __init__(self, image_size: torch.Size, convolution_structure: list, expert_output_len: int, output_len: int, pool_depth: int):
         super(CardClassifier, self).__init__()

@@ -79,11 +79,10 @@ class CardClassifier(nn.Module):
     
     def get_final_dense_structure (self, input_size: int, output: int, stop = 2):
         i = input_size
-        ret = []
-        while i > output:
-            ret.append( i - 10 )
-            i = i - 10
-            if len(ret) == stop: break
+        ret = [input_size]
+        while ret[-1]//i > output:
+            ret.append( ret[-1] // i )
+            i = i * 2
         return ret
 
     def get_expert_output_dict(self)->dict:

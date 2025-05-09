@@ -1,10 +1,10 @@
 {
     "Best_params": {
-        "max_depth": 9,
-        "min_samples_split": 9,
-        "min_samples_leaf": 2,
+        "max_depth": 3,
+        "min_samples_split": 18,
+        "min_samples_leaf": 4,
         "criterion": "entropy"
     },
-    "Precision_Score": 0.9616071428571429,
+    "Precision_Score": 0.9688995215311005,
     "target_label": "true_label"
 }

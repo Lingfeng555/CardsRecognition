@@ -1,9 +1,0 @@
-{
-    "Best_params": {
-        "max_depth": 18,
-        "min_samples_split": 16,
-        "min_samples_leaf": 4,
-        "criterion": "gini"
-    },
-    "Precision_Score": 0.9547619047619047
-}

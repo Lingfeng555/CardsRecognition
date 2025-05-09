@@ -14,8 +14,6 @@ class DenseBlock(nn.Module):
 
         self.input_size = input_size
         self.output_len = output_len
-
-        hidden_layers.insert(0, input_size)
         hidden_layers.append(output_len)
 
         self.layers = nn.ModuleList([

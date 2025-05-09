@@ -82,7 +82,7 @@ class CardClassifier(nn.Module):
         ret = [input_size]
         while ret[-1]//i > output:
             ret.append( ret[-1] // i )
-            i = i * 2
+            i = i + 2
         return ret
 
     def get_expert_output_dict(self)->dict:

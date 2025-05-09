@@ -8,7 +8,7 @@ import os
 import json
 import time
 
-class Agent:
+class CardRecognizer:
     device: str
     category_classifier: CardClassifier
     suit_classifier: CardClassifier
@@ -88,23 +88,19 @@ class Agent:
             return self.category_dataset.decode_label(category.detach().numpy()[0]), self.suit_dataset.decode_label(suit.detach().numpy()[0])
     
 if __name__ == "__main__":
-    agent = Agent(csv_file="cards.csv", device="cpu")
+    agent = CardRecognizer(csv_file="cards.csv", device="cpu")
     
-    suit_dataset = CardsDataset(scale=0.6, split="test", csv_file="cards.csv", target="labels")
-    image, label = suit_dataset.__getitem__(random.randint(0, len(suit_dataset)))
+    dataset = CardsDataset(scale=0.6, split="test", csv_file="cards.csv", target="labels")
+    image, label = dataset.__getitem__(random.randint(0, len(dataset)))
     
     category, suit = agent.classify_card(image)
     print(f"Category: {category}, Suit: {suit}") # Category: ace, Suit: diamonds
-    print(f"True Label: {suit_dataset.decode_label(label)}")
+    print(f"True Label: {dataset.decode_label(label)}")
     print(f"Agent_size: {agent.size()}")
     
     start_time = time.time()
-    for i in range(len(suit_dataset)):
-        image, _ = suit_dataset.__getitem__(i)
+    for i in range(len(dataset)):
+        image, _ = dataset.__getitem__(i)
         agent.classify_card(image)
     elapsed_time = time.time() - start_time
-    print(f"Time taken to process the dataset one by one: {elapsed_time:.2f} seconds, {elapsed_time/len(suit_dataset):.2f} seconds per image")
-    
-
-
-
+    print(f"Time taken to process the dataset one by one: {elapsed_time:.2f} seconds, {elapsed_time/len(dataset):.2f} seconds per image")

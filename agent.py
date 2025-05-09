@@ -6,6 +6,7 @@ import torch.nn as nn
 import random
 import os
 import json
+import time
 
 class Agent:
     device: str
@@ -14,11 +15,11 @@ class Agent:
     category_dataset: CardsDataset
     suit_dataset: CardsDataset
     
-    def __init__(self, csv_file: str = "cards.csv",):
+    def __init__(self, csv_file: str = "cards.csv", device: str = "cuda" if torch.cuda.is_available() else "cpu"):
         
         
         csv_file = csv_file
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = device
         
         self.set_category_classifier(csv_file)
         self.set_suit_classifier(csv_file)
@@ -33,7 +34,8 @@ class Agent:
                             convolution_structure=config["convolution_structure"],
                             expert_output_len=config["expert_output_len"],
                             output_len=config["output_len"],
-                            pool_depth=config["pool_depth"]
+                            pool_depth=config["pool_depth"],
+                            device=self.device
                             )
         return classifier
     
@@ -80,10 +82,13 @@ class Agent:
         image = image.unsqueeze(0).to(self.device)
         category = self.category_classifier(image)
         suit = self.suit_classifier(image)
-        return self.category_dataset.decode_label(category.detach().cpu()), self.suit_dataset.decode_label(suit.detach().cpu())
+        if self.device == "cuda":
+            return self.category_dataset.decode_label(category.detach().cpu()), self.suit_dataset.decode_label(suit.detach().cpu())
+        else:
+            return self.category_dataset.decode_label(category.detach().numpy()[0]), self.suit_dataset.decode_label(suit.detach().numpy()[0])
     
 if __name__ == "__main__":
-    agent = Agent(csv_file="cards.csv")
+    agent = Agent(csv_file="cards.csv", device="cpu")
     
     suit_dataset = CardsDataset(scale=0.6, split="test", csv_file="cards.csv", target="labels")
     image, label = suit_dataset.__getitem__(random.randint(0, len(suit_dataset)))
@@ -92,6 +97,14 @@ if __name__ == "__main__":
     print(f"Category: {category}, Suit: {suit}") # Category: ace, Suit: diamonds
     print(f"True Label: {suit_dataset.decode_label(label)}")
     print(f"Agent_size: {agent.size()}")
+    
+    start_time = time.time()
+    for i in range(len(suit_dataset)):
+        image, _ = suit_dataset.__getitem__(i)
+        agent.classify_card(image)
+    elapsed_time = time.time() - start_time
+    print(f"Time taken to process the dataset one by one: {elapsed_time:.2f} seconds, {elapsed_time/len(suit_dataset):.2f} seconds per image")
+    
 
 
 

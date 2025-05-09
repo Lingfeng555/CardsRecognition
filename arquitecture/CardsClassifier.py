@@ -36,7 +36,13 @@ class CardClassifier(nn.Module):
         with open(path, "w") as f:
             json.dump(config, f)
     
-    def __init__(self, image_size: torch.Size, convolution_structure: list, expert_output_len: int, output_len: int, pool_depth: int):
+    def __init__(self, 
+                 image_size: torch.Size, 
+                 convolution_structure: list, 
+                 expert_output_len: int, 
+                 output_len: int, 
+                 pool_depth: int, 
+                 device: str = "cuda" if torch.cuda.is_available() else "cpu"):
         super(CardClassifier, self).__init__()
         
         self.image_height = image_size[0]
@@ -46,7 +52,7 @@ class CardClassifier(nn.Module):
         self.output_len = output_len
         self.pool_depth = pool_depth
         
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device = device
         self.cnn_block = CNNBlock(feature=convolution_structure, height=image_size[0], width=image_size[1], pool_depth=pool_depth)
         self.expert_output_len = expert_output_len
         
@@ -132,7 +138,28 @@ class CardClassifier(nn.Module):
         '''Receive a list of indexes of experts'''
         for expert_index in list_of_experts:
             self.experts[expert_index] = nn.Identity().to(self.device)
-            
+    
+    def get_embeddings(self, x) -> torch.tensor:
+        batch, _, _, _ = x.size()
+        features = self.cnn_block(x)
+
+        attention_values = self.attention_block(features)
+        features = features.view(features.shape[0], self.cnn_block.out_put_size["features"], -1)
+        
+        x = nn.functional.relu(
+            torch.stack(
+                [
+                    self.experts[i](features[:, i, :], attention_values[:, i, :])
+                    if not isinstance(self.experts[i], nn.Identity)
+                    else torch.zeros(batch, self.expert_output_len, device=self.device)
+                    for i in range(len(self.experts))
+                ],
+                dim=1
+            )
+        )
+        self.experts_output = x
+        return self.experts_output
+    
 if __name__ == "__main__":
     # Crear instancia del modelo
     model = CardClassifier(convolution_structure=[1,8,8,16,16,32,32,64,64,128, 128], image_size=torch.Size((134, 134)), expert_output_len=2, output_len=10)

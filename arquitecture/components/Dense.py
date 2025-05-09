@@ -22,6 +22,9 @@ class DenseBlock(nn.Module):
             ])
     
     def forward(self, x: torch.tensor, att: torch.tensor) -> torch.tensor:
+        if x.size(0) == 1 and att == 0:
+            return torch.zeros(1, self.output_len, device=x.device, dtype=x.dtype)
+        
         for layer in self.layers:
             x = F.relu(layer(x))
         return x * att
@@ -30,11 +33,11 @@ class DenseBlock(nn.Module):
 
         
 if __name__ == '__main__':
-    model = DenseBlock(input_size=2334, hidden_layers=[543,123,12,4], output_len=1)
+    model = DenseBlock(input_size=2334, hidden_layers=[2334, 543,123,12,4], output_len=1)
 
-    input_tensor = torch.randn(32, 2334)  
+    input_tensor = torch.randn(1, 2334)  
 
-    output = model(input_tensor)
+    output = model(input_tensor, 0)
 
     print("Forma de la salida después de `view`:", output.shape)
     print(f"Model parameters: {model.n_parameters()}")

@@ -2,6 +2,9 @@ from utils.Loader import CardsDataset
 from arquitecture.CardsClassifier import CardClassifier
 import torch
 import random
+import os
+import json
+
 class Agent:
     device: str
     category_classifier: CardClassifier
@@ -18,6 +21,9 @@ class Agent:
         self.set_category_classifier(csv_file)
         self.set_suit_classifier(csv_file)
 
+    def size (self) -> int:
+        return self.category_classifier.n_parameters() + self.suit_classifier.n_parameters()
+    
     # @todo Do not let this hardcoded bitch
     def set_category_classifier(self, csv_file):
         self.category_dataset = CardsDataset(scale=0.6, split="test", csv_file=csv_file, target="category")
@@ -31,6 +37,13 @@ class Agent:
                             )
         category_checkpoint = torch.load("result/category_classifier.pth")
         self.category_classifier.load_state_dict(category_checkpoint['model_state_dict'])
+        
+        pruned_expert_path = os.path.join("result/category_pruned_experts.json")
+        if os.path.exists(pruned_expert_path):
+            with open(pruned_expert_path, 'rb') as f:
+                pruned_expert = json.load(f)
+                self.category_classifier.prune_experts(list_of_experts=pruned_expert)
+                
         self.category_classifier.eval()
         self.category_classifier.to(self.device)
 
@@ -47,6 +60,13 @@ class Agent:
                             ).to(self.device)
         suit_checkpoint = torch.load("result/suit_classifier.pth")
         self.suit_classifier.load_state_dict(suit_checkpoint['model_state_dict'])
+        
+        pruned_expert_path = os.path.join("result/suit_pruned_experts.json")
+        if os.path.exists(pruned_expert_path):
+            with open(pruned_expert_path, 'rb') as f:
+                pruned_expert = json.load(f)
+                self.suit_classifier.prune_experts(list_of_experts=pruned_expert)
+                
         self.suit_classifier.eval()
         self.suit_classifier.to(self.device)
     
@@ -70,6 +90,7 @@ if __name__ == "__main__":
     category, suit = agent.classify_card(image)
     print(f"Category: {category}, Suit: {suit}") # Category: ace, Suit: diamonds
     print(f"True Label: {suit_dataset.decode_label(label)}")
+    print(f"Agent_size: {agent.size()}")
 
 
 

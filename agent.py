@@ -29,9 +29,9 @@ class Agent:
         self.category_dataset = CardsDataset(scale=0.6, split="test", csv_file=csv_file, target="category")
         _, label = self.category_dataset.__getitem__(1)
         self.category_classifier = CardClassifier(image_size=torch.Size((134, 134)), 
-                            convolution_structure=[1,8,8,16,16,24,24,32,32],
-                            expert_output_len=4,
-                            expert_depth=4,
+                            convolution_structure=[1,12,12,16,16,24,24,32,32],
+                            expert_output_len=3, # 3  -> 0.7
+                            expert_depth=5,
                             output_len=len(label),
                             pool_depth=2
                             )
@@ -53,11 +53,11 @@ class Agent:
         _, label = self.suit_dataset.__getitem__(1)
         self.suit_classifier = CardClassifier(image_size=torch.Size((134, 134)), 
                             convolution_structure=[1,8,8,16,16,24,24,32,32],
-                            expert_output_len=2,
+                            expert_output_len=3,
                             expert_depth=4,
                             output_len=len(label),
                             pool_depth=2
-                            ).to(self.device)
+                            )
         suit_checkpoint = torch.load("result/suit_classifier.pth")
         self.suit_classifier.load_state_dict(suit_checkpoint['model_state_dict'])
         

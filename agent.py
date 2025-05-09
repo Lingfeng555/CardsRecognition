@@ -17,7 +17,6 @@ class Agent:
         
         self.set_category_classifier(csv_file)
         self.set_suit_classifier(csv_file)
-        
 
     # @todo Do not let this hardcoded bitch
     def set_category_classifier(self, csv_file):

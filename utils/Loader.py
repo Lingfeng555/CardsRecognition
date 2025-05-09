@@ -55,6 +55,8 @@ class CardsDataset(Dataset):
 
         # Get binary labels
         self.labels = pd.get_dummies(self.data[target], columns=[target], dtype=int)
+        if target == "category":
+            self.labels = self.labels[["ace", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "jack", "queen", "king"]]
 
         self.convert = convert
         self.target = target
@@ -89,3 +91,4 @@ if __name__ == '__main__':
     suit_test_dataset = CardsDataset(target="suit")
     _, label = suit_test_dataset.__getitem__(1)
     print(len(label))
+    print(category_test_dataset.labels)

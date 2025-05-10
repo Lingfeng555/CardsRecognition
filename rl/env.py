@@ -2,12 +2,20 @@ import numpy as np
 import gym
 from gym import spaces
 import random
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from agent import CardRecognizer
+from utils.Loader import CardsDataset
+import pandas as pd
+import torch
+from torchvision import transforms
 
 class BlackjackEnv(gym.Env):
     """
     Modified Blackjack environment with a realistic poker deck, usable Ace logic, and suit-based rewards.
     """
-    def __init__(self):
+    def __init__(self, csv_path = "cards.csv"):
         super(BlackjackEnv, self).__init__()
 
         self.action_space = spaces.Discrete(2)  # 0 = Stand, 1 = Hit
@@ -17,13 +25,72 @@ class BlackjackEnv(gym.Env):
             spaces.Discrete(2)    # Usable Ace: 1 = yes, 0 = no
         ))
 
+        self.csv_path = csv_path
+        self.agent = CardRecognizer(csv_file=csv_path, device='cuda' if torch.cuda.is_available() else 'cpu')
         self.deck = self._init_deck()
         self.reset()
 
     def _init_deck(self):
-        suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
-        values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
-        deck = [{'value': v, 'suit': s} for s in suits for v in values]
+        """
+        Initialize the deck by sampling one image per unique card from the dataset
+        and using CardRecognizer to identify its category and suit.
+        """
+        # Load dataset
+        card_data = pd.read_csv(self.csv_path)
+        card_data = card_data[card_data['data set'] == 'test']
+        card_data = card_data[card_data['labels'].str.lower() != 'joker']
+        card_data = card_data[['filepaths', 'labels', 'card type']].reset_index(drop=True)
+
+        dataset = CardsDataset(
+            path='./data/',
+            csv_file='cards.csv',
+            split='test',
+            target='labels',
+            scale=0.6,
+            transform=transforms.Compose([transforms.ToTensor()])
+        )
+
+        unique_cards = card_data['labels'].unique()
+
+        deck = []
+        for card_label in unique_cards:
+            card_of_type = card_data[card_data['labels'] == card_label]
+            select_card = card_of_type.sample(1).iloc[0]
+            card_path = select_card['filepaths']
+            
+            try:
+                img_idx = card_data[card_data['filepaths'] == card_path].index[0]
+                image, _ = dataset.__getitem__(img_idx)
+
+                if image.shape[0] == 1:
+                    image = image.repeat(3, 1, 1)
+
+                # Classify the card
+                category, suit = self.agent.classify_card(image)
+
+                category_map = {
+                    'ace': 'A',
+                    'two': '2',
+                    'three': '3',
+                    'four': '4',
+                    'five': '5',
+                    'six': '6',
+                    'seven': '7',
+                    'eight': '8',
+                    'nine': '9',
+                    'ten': '10',
+                    'jack': 'J',
+                    'queen': 'Q',
+                    'king': 'K'
+                }
+                value = category_map.get(category.lower(), 'A')  # Default to A if unrecognized
+                suit = suit.capitalize()
+
+                deck.append({'value': value, 'suit': suit})
+            except Exception as e:
+                print(f"Error processing card {card_label} at {card_path}: {e}")
+                continue
+
         random.shuffle(deck)
         return deck
 

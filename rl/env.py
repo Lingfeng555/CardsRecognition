@@ -76,8 +76,7 @@ class BlackjackEnv(gym.Env):
         while ace_count > 0:
             if total + 10 <= 21:
                 total += 10
-                usable_ace = 1
-                break
+                usable_ace += 1
             ace_count -= 1
 
         return total, usable_ace, suits

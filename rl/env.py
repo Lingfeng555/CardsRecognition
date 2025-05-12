@@ -47,7 +47,11 @@ class BlackjackEnv(gym.Env):
             self.deck = self._init_deck()
         return self.deck.pop()
 
-    def card_value(self, card):
+    def card_value(self, card, ace_as_one=True):
+        """
+        Calculate the value of a card. For aces, ace_as_one determines if the ace is counted as 1 or 11
+        before adding the suit adjustment.
+        """
         if card['suit'] == 'Hearts':
             added_val = 2
         elif card['suit'] == 'Diamonds':
@@ -58,28 +62,71 @@ class BlackjackEnv(gym.Env):
             added_val = -2
 
         if card['value'] == 'A':
-            return 1 + added_val
+            base_value = 1 if ace_as_one else 11
+            return base_value + added_val
         elif card['value'] in ['J', 'Q', 'K']:
             return 10 + added_val
-        
         return int(card['value']) + added_val
 
     def card_suit(self, card):
         return card['suit']
 
     def hand_value(self, hand):
-        total = sum(self.card_value(card) for card in hand)
+        """
+        Calculate the total value of the hand, considering multiple aces with suit adjustments.
+        Returns the best total (≤ 21 if possible), the number of usable aces, and the suits.
+        """
+        # Calculate base total from non-ace cards
+        base_total = 0
+        aces = []
+        for card in hand:
+            if card['value'] == 'A':
+                aces.append(card)
+            else:
+                base_total += self.card_value(card)
+
         suits = [self.card_suit(card) for card in hand]
-        ace_count = sum(1 for card in hand if card['value'] == 'A')
-        usable_ace = 0
+        if not aces:
+            return base_total, 0, suits
 
-        while ace_count > 0:
-            if total + 10 <= 21:
-                total += 10
-                usable_ace += 1
-            ace_count -= 1
+        # For each ace, compute its possible values (1 or 11, adjusted by suit)
+        ace_values = []
+        for ace in aces:
+            value_as_one = self.card_value(ace, ace_as_one=True)
+            value_as_eleven = self.card_value(ace, ace_as_one=False)
+            ace_values.append((value_as_one, value_as_eleven))
 
-        return total, usable_ace, suits
+        # Try all combinations of ace values
+        best_total = base_total
+        best_usable_aces = 0
+        best_bust_total = float('inf')
+
+        def evaluate_combinations(index, current_total, usable_aces):
+            nonlocal best_total, best_usable_aces, best_bust_total
+            if index == len(ace_values):
+                if current_total <= 21:
+                    if current_total > best_total:
+                        best_total = current_total
+                        best_usable_aces = usable_aces
+                else:
+                    if current_total < best_bust_total:
+                        best_bust_total = current_total
+                return
+
+            # Ace as 1 (or adjusted value)
+            evaluate_combinations(index + 1, current_total + ace_values[index][0], usable_aces)
+
+            # Ace as 11 (or adjusted value)
+            evaluate_combinations(index + 1, current_total + ace_values[index][1], usable_aces + 1)
+
+        evaluate_combinations(0, base_total, 0)
+
+        # If all combinations bust, use the smallest total
+        if best_total == base_total and best_bust_total != float('inf'):
+            best_total = best_bust_total
+            best_usable_aces = 0  # Reset usable aces if we bust
+
+        return best_total, best_usable_aces, suits
 
     def _get_obs(self):
         total, usable_ace, _ = self.hand_value(self.player)

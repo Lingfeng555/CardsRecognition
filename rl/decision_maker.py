@@ -8,7 +8,7 @@ class DecisionMaker:
     State format: (player_total, dealer_visible_card, usable_ace)
     Action: 0 = stand, 1 = hit
     """
-    def __init__(self, q_table_path="q_table_final.pkl"):
+    def __init__(self, q_table_path="rl/q_table_final.pkl"):
         """
         Initialize the DecisionMaker with a Q-table.
 
@@ -31,7 +31,7 @@ class DecisionMaker:
             state (tuple): State in the format (player_total, dealer_visible_card, usable_ace).
                            - player_total: int (0-31)
                            - dealer_visible_card: int (1-10)
-                           - usable_ace: int (0 or 1)
+                           - usable_ace: int (0-2)
 
         Returns:
             int: Action (0 = stand, 1 = hit).
@@ -45,8 +45,8 @@ class DecisionMaker:
             raise ValueError("player_total must be between 0 and 31")
         if not (1 <= dealer_visible_card <= 10):
             raise ValueError("dealer_visible_card must be between 1 and 10")
-        if usable_ace not in (0, 1):
-            raise ValueError("usable_ace must be 0 or 1")
+        if usable_ace not in (0, 1, 2):
+            raise ValueError("usable_ace must be 0, 1 or 2")
 
         # Convert state to tuple for Q-table lookup
         state = tuple(state)

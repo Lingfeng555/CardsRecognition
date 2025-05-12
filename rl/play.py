@@ -8,7 +8,7 @@ env = BlackjackEnv()
 n_episodes = 1000
 
 # Load Q-table
-with open("q_table.pkl", "rb") as f:
+with open("q_table_final.pkl", "rb") as f:
     Q = pickle.load(f)
 
 def choose_action(state):

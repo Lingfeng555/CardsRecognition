@@ -1,21 +1,16 @@
-import numpy as np
 import gym
 from gym import spaces
+from collections import defaultdict
+import pickle
 import random
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from agent import CardRecognizer
-from utils.Loader import CardsDataset
-import pandas as pd
 import torch
-from torchvision import transforms
+import numpy as np
 
 class BlackjackEnv(gym.Env):
     """
     Modified Blackjack environment with a realistic poker deck, usable Ace logic, and suit-based rewards.
     """
-    def __init__(self, csv_path = "cards.csv"):
+    def __init__(self, csv_path = "cards.csv", q_table_path="q_table_dealer.pkl"):
         super(BlackjackEnv, self).__init__()
 
         self.action_space = spaces.Discrete(2)  # 0 = Stand, 1 = Hit
@@ -25,73 +20,26 @@ class BlackjackEnv(gym.Env):
             spaces.Discrete(2)    # Usable Ace: 1 = yes, 0 = no
         ))
 
-        self.csv_path = csv_path
-        self.agent = CardRecognizer(csv_file=csv_path, device='cuda' if torch.cuda.is_available() else 'cpu')
+        try:
+            with open(q_table_path, 'rb') as f:
+                self.Q = defaultdict(lambda: np.zeros(self.action_space.n), pickle.load(f))
+            print(f"Loaded Q-table from {q_table_path}")
+        except FileNotFoundError:
+            print(f"Q-table file {q_table_path} not found. Initializing empty Q-table.")
+            self.Q = defaultdict(lambda: np.zeros(self.action_space.n))
+        
         self.deck = self._init_deck()
         self.reset()
 
     def _init_deck(self):
-        """
-        Initialize the deck by sampling one image per unique card from the dataset
-        and using CardRecognizer to identify its category and suit.
-        """
-        # Load dataset
-        card_data = pd.read_csv(self.csv_path)
-        card_data = card_data[card_data['data set'] == 'test']
-        card_data = card_data[card_data['labels'].str.lower() != 'joker']
-        card_data = card_data[['filepaths', 'labels', 'card type']].reset_index(drop=True)
+        suits = ['Hearts', 'Diamonds', 'Clubs', 'Spades']
 
-        dataset = CardsDataset(
-            path='./data/',
-            csv_file='cards.csv',
-            split='test',
-            target='labels',
-            scale=0.6,
-            transform=transforms.Compose([transforms.ToTensor()])
-        )
+        values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 
-        unique_cards = card_data['labels'].unique()
-
-        deck = []
-        for card_label in unique_cards:
-            card_of_type = card_data[card_data['labels'] == card_label]
-            select_card = card_of_type.sample(1).iloc[0]
-            card_path = select_card['filepaths']
-            
-            try:
-                img_idx = card_data[card_data['filepaths'] == card_path].index[0]
-                image, _ = dataset.__getitem__(img_idx)
-
-                if image.shape[0] == 1:
-                    image = image.repeat(3, 1, 1)
-
-                # Classify the card
-                category, suit = self.agent.classify_card(image)
-
-                category_map = {
-                    'ace': 'A',
-                    'two': '2',
-                    'three': '3',
-                    'four': '4',
-                    'five': '5',
-                    'six': '6',
-                    'seven': '7',
-                    'eight': '8',
-                    'nine': '9',
-                    'ten': '10',
-                    'jack': 'J',
-                    'queen': 'Q',
-                    'king': 'K'
-                }
-                value = category_map.get(category.lower(), 'A')  # Default to A if unrecognized
-                suit = suit.capitalize()
-
-                deck.append({'value': value, 'suit': suit})
-            except Exception as e:
-                print(f"Error processing card {card_label} at {card_path}: {e}")
-                continue
+        deck = [{'value': v, 'suit': s} for s in suits for v in values]
 
         random.shuffle(deck)
+
         return deck
 
     def draw_card(self):
@@ -138,6 +86,11 @@ class BlackjackEnv(gym.Env):
         total, usable_ace, _ = self.hand_value(self.player)
         dealer_card_value = self.card_value(self.dealer[0])
         return (total, dealer_card_value, usable_ace)
+    
+    def _get_dealer_state(self):
+        dealer_total, dealer_usable_ace, _ = self.hand_value(self.dealer)
+        player_first_card_value = self.card_value(self.player[0])
+        return (dealer_total, player_first_card_value, dealer_usable_ace)
 
     def reset(self):
         self.deck = self._init_deck()
@@ -149,8 +102,9 @@ class BlackjackEnv(gym.Env):
         return self._get_obs()
 
     def dealer_policy(self, dealer_hand):
-        total, _, _ = self.hand_value(dealer_hand)
-        return 0 if total >= 17 else 1
+        state = self._get_dealer_state()
+        state = tuple(state)  # Q-table keys are tuples
+        return np.argmax(self.Q[state])  # Choose the action with the highest Q-value
 
     def step(self, player_action):
         assert self.action_space.contains(player_action), "Invalid action (0 = stick, 1 = hit)"

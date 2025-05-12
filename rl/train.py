@@ -54,6 +54,16 @@ for episode in range(n_episodes):
 
     if episode % 1000 == 0:
         print(f"Episode {episode} - Epsilon: {epsilon:.4f}")
+    
+    if episode % 10000 == 0:
+        with open(f"q_table_{episode}.pkl", "wb") as f:
+            pickle.dump(dict(Q), f)
+        print("Q-table saved to q_table.pkl")
+    
+    if episode == 99999:
+        with open("q_table_final.pkl", "wb") as f:
+            pickle.dump(dict(Q), f)
+        print("Final Q-table saved to q_table_final.pkl")
 
     if episode % 50 == 0:
         games.append({
@@ -64,8 +74,3 @@ for episode in range(n_episodes):
 
 # Save games
 save_game_to_parquet(games, path_prefix="data/trained_blackjack")
-
-# Save Q-table
-with open("q_table.pkl", "wb") as f:
-    pickle.dump(dict(Q), f)
-print("Q-table saved to q_table.pkl")

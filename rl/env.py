@@ -1,5 +1,6 @@
 import gym
 from gym import spaces
+from gym.spaces import Box
 from collections import defaultdict
 import pickle
 import random
@@ -16,7 +17,7 @@ class BlackjackEnv(gym.Env):
         self.action_space = spaces.Discrete(2)  # 0 = Stand, 1 = Hit
         self.observation_space = spaces.Tuple((
             spaces.Discrete(32),  # Player's hand total (0–31)
-            spaces.Discrete(11),  # Dealer's visible card (1–10)
+            Box(low=-1, high=12, shape=(1,), dtype=np.int32),  # Dealer's visible card (-1–12)
             spaces.Discrete(2)    # Usable Ace: 1 = yes, 0 = no
         ))
 
@@ -131,8 +132,8 @@ class BlackjackEnv(gym.Env):
     def _get_obs(self):
         total, usable_ace, _ = self.hand_value(self.player)
         dealer_card_value = self.card_value(self.dealer[0])
-        return (total, dealer_card_value, usable_ace)
-    
+        return (total, int(dealer_card_value), usable_ace)
+
     def _get_dealer_state(self):
         dealer_total, dealer_usable_ace, _ = self.hand_value(self.dealer)
         player_first_card_value = self.card_value(self.player[0])

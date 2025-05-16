@@ -41,10 +41,10 @@ class DecisionMaker:
             raise ValueError("State must be a tuple or list of length 3: (player_total, dealer_visible_card, usable_ace)")
 
         player_total, dealer_visible_card, usable_ace = state
-        if not (0 <= player_total <= 31):
-            raise ValueError("player_total must be between 0 and 31")
-        if not (1 <= dealer_visible_card <= 10):
-            raise ValueError("dealer_visible_card must be between 1 and 10")
+        if not (-2 <= player_total <= 32):
+            raise ValueError("player_total must be between -1 and 32")
+        if not (-1 <= dealer_visible_card <= 12):
+            raise ValueError("dealer_visible_card must be between -1 and 12")
         if usable_ace not in (0, 1, 2):
             raise ValueError("usable_ace must be 0, 1 or 2")
 
